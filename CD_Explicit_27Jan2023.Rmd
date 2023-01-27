@@ -1,0 +1,279 @@
+---
+title: "R Notebook"
+output: html_notebook
+editor_options: 
+  chunk_output_type: inline
+---
+
+Load in libraries
+```{r}
+
+rm(list = ls())
+
+library(tidyverse)
+library(dplyr)
+library(plotrix)
+library(car)
+library(lemon)
+library(ggpubr)
+
+call_aesthethics <- function(text_size){
+  
+  th <- theme(   panel.grid.major = element_blank(),
+                 panel.grid.minor = element_blank(),
+                 panel.border = element_blank(),
+                 panel.background = element_blank(),
+                 axis.line = element_line(size = 0.5), 
+                 legend.position = 'right', 
+                 legend.text = element_text(size= text_size, family="Helvetica"),
+                 text = element_text(size= text_size, family="Helvetica"), 
+                 strip.text.x = element_text(size = rel(0.90)), 
+                 strip.text.y = element_text(size = rel(0.90)), 
+                 axis.title.x = element_text(vjust=-0.3), 
+                 plot.title = element_text(hjust = 0.5, vjust = 0), 
+                 axis.ticks = element_line(size = 0.4), 
+                 axis.text.x.bottom  = element_text(size = rel(0.90), margin = unit(c(t = 2.5, r = 0, b = 0, l = 0), "mm")),
+                 axis.title.y = element_text(vjust = 1),
+                 axis.text.y = element_text(size = rel(0.90), margin = unit(c(t = 0, r = 2.5, b = 0, l = 0), "mm")),
+                 axis.ticks.length = unit(-1.2, "mm"),
+                 axis.text.x.top = element_text(size = rel(0.90), margin = unit(c(t = 0, r = 0, b = 2.5, l = 0), "mm")))
+  
+  return(th)
+}
+
+my.colors2 <-  c("#006600", "#800080", "#FF9900", 'deepskyblue4')
+th <- call_aesthethics(14)
+
+```
+
+Load in data 
+```{r}
+
+my_data <- read.csv("/Users/jonathantsay/Desktop/CD_Aiming_Data_27Jan2023.csv")
+my_data$mygroup <- factor(my_data$mygroup, levels = c("Control", "CD"))
+
+```
+
+
+Mean Hand Angle All Groups
+```{r}
+
+
+e1_CN_hand_plot <- my_data %>% 
+  filter(mygroup %in% c("CD","Control")) %>% 
+  group_by(Subject.ID, Block, CN, mygroup) %>%
+  dplyr::summarise(Hand_mean = mean(HandFlip_pro, na.rm = TRUE)) %>%
+  ggplot(aes(x = CN, y = Hand_mean, group = interaction(Block, mygroup))) + 
+  geom_vline(xintercept = c(10, 70, 80, 90, 150)/2 + 0.5, color = "grey90") + 
+  geom_hline(yintercept = c(0, 60), color = "grey90") +
+  scale_y_continuous(breaks = seq(-30, 60, 30)) +
+  stat_summary(fun = "mean", geom = "line", aes(color = mygroup,)) + 
+  stat_summary(fun.data = "mean_se", geom = "ribbon", alpha = 0.2, aes(fill = mygroup)) +
+  labs(x = 'Cycle # (2 movements)', y = 'Hand Angle (°)') +
+  labs(mygroup = "Group", "CD", "Control", "PD") + 
+  labs(fill = "Group") +
+  scale_color_manual(values = my.colors2) +
+  scale_fill_manual(values = my.colors2) +
+  coord_capped_cart(ylim = c(-31, 61)) +
+  guides(color = FALSE)  + th +  theme(legend.position = "none") 
+print(e1_CN_hand_plot)
+
+
+```
+Summary datapoints 
+```{r}
+
+my_ind_data <- my_data %>% 
+  group_by(Subject.ID, phase, mygroup) %>%
+  dplyr::summarise(Hand_mean = mean(HandFlip_pro, na.rm = TRUE), 
+                   RT_mean = mean(RT_audio_pro, na.rm = TRUE)) %>%
+  separate(phase, into = c("phase", "half"), sep = "_") %>%
+  filter(phase != "Baseline") 
+
+my_ind_data$phase <- factor(my_ind_data$phase, levels = c("Early", "Late", "After"))
+
+my_ind_1sthalf_plot <- my_ind_data %>%
+  filter(mygroup %in% c("Control", "CD") & half == 1) %>% 
+  ggplot(aes(x = phase, y = Hand_mean, group = interaction(phase, mygroup), color = mygroup)) + 
+  geom_hline(yintercept = c(0), color = "grey") +
+  geom_boxplot(outlier.shape = NA) + th + theme(legend.position = "none") + 
+  geom_point(position = position_jitterdodge(0.75, jitter.width = 0.2), alpha = 0.3, size = 0.8) + 
+  stat_summary(fun = "mean", geom = "errorbar", position = position_dodge(0.75), aes(ymax = ..y.., ymin = ..y..), linetype = "dashed", width = 0.70) + 
+  scale_y_continuous(breaks = seq(-60, 60, 30)) + 
+  coord_capped_cart(ylim = c(-60, 80)) +
+  scale_color_manual(values = my.colors2) +
+  labs(x = '', y = 'Hand Angle (°)')
+print(my_ind_1sthalf_plot)
+
+my_ind_2ndhalf_plot <- my_ind_data %>%
+  filter(mygroup %in% c("Control", "CD") & half == 2) %>% 
+  ggplot(aes(x = phase, y = Hand_mean, group = interaction(phase, mygroup), color = mygroup)) + 
+  geom_hline(yintercept = c(0), color = "grey") +
+  geom_boxplot(outlier.shape = NA) + th + theme(legend.position = "none") + 
+  geom_point(position = position_jitterdodge(0.75, jitter.width = 0.2), alpha = 0.3, size = 0.8) + 
+  stat_summary(fun = "mean", geom = "errorbar", position = position_dodge(0.75), aes(ymax = ..y.., ymin = ..y..), linetype = "dashed", width = 0.70) + 
+  scale_y_continuous(breaks = seq(-60, 60, 30)) + 
+  coord_capped_cart(ylim = c(-60, 80)) +
+  scale_color_manual(values = my.colors2) +
+  labs(x = '', y = 'Hand Angle (°)')
+print(my_ind_2ndhalf_plot)
+
+```
+
+Recall
+```{r}
+
+my_ind_recall <- my_ind_data %>% 
+  filter( (phase == "Early"  & half == 2) | (phase == "Late" & half == 1)) %>%
+  group_by(Subject.ID) %>% 
+  mutate(Late_1 = lead(Hand_mean), 
+         Recall_perc = Hand_mean/Late_1) %>%
+  drop_na(mygroup)
+
+recall_plot <- my_ind_recall %>%
+  ggplot(aes(x = mygroup, y = Recall_perc, color = mygroup)) + 
+  scale_y_continuous(breaks = seq(0, 2, 0.5)) +
+  geom_boxplot(outlier.shape = NA) + 
+  coord_capped_cart(ylim = c(0, 2)) + 
+  th + theme(legend.position = "none") + labs(x = "", y = "Recall ratio") +
+  scale_color_manual(values = my.colors2) 
+plot(recall_plot)
+
+```
+
+
+Determine learner vs non-learner
+```{r}
+
+all_sub <- unique(my_data$Subject.ID)
+my_learner_results <- data.frame(Subject.ID = rep(NA, length(all_sub) * 2), 
+                                 mygroup= rep(NA, length(all_sub)* 2), 
+                                 Half = rep(NA, length(all_sub)* 2), 
+                                 T_val = rep(NA, length(all_sub)* 2), 
+                                 P_val = rep(NA, length(all_sub)* 2), 
+                                 Late_mean = rep(NA, length(all_sub)* 2))
+
+counter <- 1
+
+for(si in all_sub){
+  for(hi in 1:2){
+    
+    if(hi == 1){
+      my_t_test_data <-  my_data %>% filter(phase %in% c("Late_1") & Subject.ID == si)
+    }else{
+      my_t_test_data <-  my_data %>% filter(phase %in% c("Late_2") & Subject.ID == si)
+    }
+    
+    my_t_test <- t.test(my_t_test_data$HandFlip_pro)
+    my_learner_results$Subject.ID[counter] <- si
+    my_learner_results$mygroup[counter] <- unique(my_t_test_data$mygroup)
+    my_learner_results$T_val[counter] <- my_t_test$statistic[1]
+    my_learner_results$P_val[counter] <- my_t_test$p.value[1]
+    my_learner_results$Half[counter] <- hi
+    my_learner_results$Late_mean[counter] <- my_t_test$estimate[1]
+    
+    counter <- counter + 1
+  }
+}
+
+my_learner_results_sum <- my_learner_results %>%
+  mutate(learner = ifelse(T_val > 0 & P_val < 0.05, 1, 0)) %>%
+  dplyr::select(Subject.ID, mygroup, Half, learner) %>%
+  spread(Half, learner) %>%
+  mutate(LearnerType = case_when(`1` == 1 & `2` == 1 ~ "Both", 
+                                 `1` == 0 & `2` == 1 ~ "2ndOnly", 
+                                 `1` == 1 & `2` == 0 ~ "1stOnly", 
+                                 `1` == 0 & `2` == 0 ~ "None")) %>%
+  mutate(LearnerType_Simplified = ifelse(LearnerType == "Both", 1, 0))
+
+my_learner_results_sum %>%
+  group_by(mygroup,LearnerType_Simplified) %>%
+  count()
+
+my_ind_data <- my_data %>% 
+  group_by(Subject.ID, phase, mygroup) %>%
+  dplyr::summarise(Hand_mean = mean(HandFlip_pro, na.rm = TRUE), 
+                   RT_mean = mean(RT_audio_pro, na.rm = TRUE), 
+                   MT_mean = mean(MT_pro, na.rm = TRUE)) %>%
+  separate(phase, into = c("phase", "half"), sep = "_") %>%
+  filter(phase != "Baseline" & mygroup != "PD")
+
+
+my_ind_data$phase <- factor(my_ind_data$phase, c("Early", "Late", "After"))
+mylearners <- my_learner_results_sum$Subject.ID[my_learner_results_sum$LearnerType == "Both"]
+
+my_ind_data_learners <- my_ind_data %>%
+  filter(Subject.ID %in% mylearners)
+
+my_data_learnerjoined <- full_join(my_data, my_learner_results_sum %>% dplyr::select(Subject.ID, LearnerType_Simplified), by = "Subject.ID")
+
+```
+
+Ploy learners
+```{r}
+
+cycle_bin <- 2
+
+e1_CN_hand_plot_learner <- my_data_learnerjoined %>% 
+  filter(mygroup %in% c("Control", "CD") & LearnerType_Simplified == 1) %>% 
+  mutate(CN = ceiling(TN/cycle_bin)) %>% 
+  group_by(Subject.ID, CN, LearnerType_Simplified, mygroup, Block) %>%
+  dplyr::summarise(Hand_mean = mean(HandFlip_pro, na.rm = TRUE)) %>%
+  ggplot(aes(x = CN, y = Hand_mean, group = interaction(Block, mygroup))) + 
+  geom_vline(xintercept = c(10, 70, 80, 90, 150)/cycle_bin + 0.5, color = "grey90") + 
+  #geom_segment(aes(x=9,xend=13,y=-18,yend=-18),color="black") +
+  geom_hline(yintercept = c(0, 60), color = "grey90") + th + 
+  theme(legend.position = "none") +
+  scale_y_continuous(breaks = seq(-30, 60, 30)) +
+  stat_summary(fun = "mean", geom = "line", aes(color = mygroup,)) + 
+  stat_summary(fun.data = "mean_se", geom = "ribbon", alpha = 0.2, aes(fill = mygroup)) +
+  scale_color_manual(values = my.colors2[c(2, 1)]) +
+  scale_fill_manual(values = my.colors2[c(2, 1)]) +
+  labs(x = 'Cycle # (2 movements)', y = 'Hand Angle (°)') 
+print(e1_CN_hand_plot_learner)
+
+
+```
+
+```{r}
+
+my_ind_1sthalf_learner_plot <- my_ind_data %>%
+  filter(Subject.ID %in% my_learner_results_sum$Subject.ID[my_learner_results_sum$LearnerType == "Both"] & half == 1 & mygroup %in% c("Control", "CD")) %>% 
+  ggplot(aes(x = phase, y = Hand_mean, group = interaction(phase, mygroup), color = mygroup)) + 
+  geom_hline(yintercept = c(0), color = "grey") +
+  geom_boxplot(outlier.shape = NA) + th + theme(legend.position = "none") + 
+  geom_point(position = position_jitterdodge(0.75, jitter.width = 0.2), alpha = 0.3, size = 0.8) + 
+  stat_summary(fun = "mean", geom = "errorbar", position = position_dodge(0.75), aes(ymax = ..y.., ymin = ..y..), linetype = "dashed", width = 0.70) + 
+  scale_y_continuous(breaks = seq(-60, 60, 30)) + 
+  coord_capped_cart(ylim = c(-60, 80)) + 
+  scale_color_manual(values = my.colors2) +
+  labs(x = '', y = 'Hand Angle (°)')
+print(my_ind_1sthalf_learner_plot)
+
+my_ind_2ndhalf_learner_plot <- my_ind_data %>%
+  filter(Subject.ID %in% my_learner_results_sum$Subject.ID[my_learner_results_sum$LearnerType == "Both"] & half == 2 & mygroup %in% c("Control", "CD")) %>% 
+  ggplot(aes(x = phase, y = Hand_mean, group = interaction(phase, mygroup), color = mygroup)) + 
+  geom_hline(yintercept = c(0), color = "grey") +
+  geom_boxplot(outlier.shape = NA) + th + theme(legend.position = "none") + 
+  geom_point(position = position_jitterdodge(0.75, jitter.width = 0.2), alpha = 0.3, size = 0.8) + 
+  stat_summary(fun = "mean", geom = "errorbar", position = position_dodge(0.75), aes(ymax = ..y.., ymin = ..y..), linetype = "dashed", width = 0.70) + 
+  scale_y_continuous(breaks = seq(-60, 60, 30)) + 
+  coord_capped_cart(ylim = c(-60, 80)) + 
+  scale_color_manual(values = my.colors2) +
+  labs(x = '', y = 'Hand Angle (°)')
+print(my_ind_2ndhalf_learner_plot)
+
+
+recall_learners_plot <- my_ind_recall %>%
+  filter(Subject.ID %in% my_learner_results_sum$Subject.ID[my_learner_results_sum$LearnerType == "Both"] & mygroup %in% c("Control", "CD"))  %>%
+  ggplot(aes(x = mygroup, y = Recall_perc, color = mygroup)) +
+  geom_boxplot(outlier.shape = NA) +
+  scale_y_continuous(breaks = seq(0, 2, 0.5)) +
+  coord_capped_cart(ylim = c(0, 2)) +
+  scale_color_manual(values = my.colors2) +
+  th + theme(legend.position = "none") + labs(x = "", y = "Recall Ratio")
+plot(recall_learners_plot)
+
+```
+
+
